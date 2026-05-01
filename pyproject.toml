@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aye-cli"
-version = "0.0.2"
+version = "0.0.3"
 description = "A lightweight AI coding CLI wrapper that auto-confirms explicit terminal prompts."
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = ["certifi>=2025.11.12"]
 authors = [{ name = "Aye" }]
 license = { text = "MIT" }
 keywords = ["ai", "cli", "automation", "claude", "gemini", "codex"]

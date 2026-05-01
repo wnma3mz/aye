@@ -10,30 +10,29 @@ Aye 是一个给 AI 编程 CLI 用的自动确认工具。名字读起来就是 
 
 - `aye-linux-x64.tar.gz`
 - `aye-linux-arm64.tar.gz`
-- `aye-darwin-x64.tar.gz`
 - `aye-darwin-arm64.tar.gz`
 
-实际文件名会包含版本号，例如 `aye-v0.0.2-darwin-arm64.tar.gz`。
+实际文件名会包含版本号，例如 `aye-v0.0.3-darwin-arm64.tar.gz`。
 
 Linux x64：
 
 ```sh
-tar -xzf aye-v0.0.2-linux-x64.tar.gz
+tar -xzf aye-v0.0.3-linux-x64.tar.gz
 chmod +x aye
 ./aye claude
 ```
 
-Linux ARM64 把文件名换成 `aye-v0.0.2-linux-arm64.tar.gz`。
+Linux ARM64 把文件名换成 `aye-v0.0.3-linux-arm64.tar.gz`。
 
 macOS Apple Silicon：
 
 ```sh
-tar -xzf aye-v0.0.2-darwin-arm64.tar.gz
+tar -xzf aye-v0.0.3-darwin-arm64.tar.gz
 chmod +x aye
 ./aye claude
 ```
 
-macOS Intel 把文件名换成 `aye-v0.0.2-darwin-x64.tar.gz`。
+当前发布包先提供 macOS Apple Silicon 版本，Intel 版本暂不发布。
 
 如果 macOS 提示无法打开下载的文件，先移除 quarantine 标记：
 

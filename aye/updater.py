@@ -11,6 +11,8 @@ import tempfile
 import urllib.error
 import urllib.request
 
+import certifi
+
 from . import __version__
 
 
@@ -61,7 +63,7 @@ def _fetch_latest_release() -> dict:
         LATEST_RELEASE_URL,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "aye-updater"},
     )
-    with urllib.request.urlopen(request, timeout=20) as response:
+    with urllib.request.urlopen(request, timeout=20, context=_ssl_context()) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -98,8 +100,14 @@ def _asset_url(release: dict, asset_name: str) -> str:
 
 def _download(url: str, path: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": "aye-updater"})
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=60, context=_ssl_context()) as response:
         path.write_bytes(response.read())
+
+
+def _ssl_context():
+    import ssl
+
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def _extract_archive(archive_path: Path, extract_dir: Path) -> None:
