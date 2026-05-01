@@ -13,25 +13,27 @@ Aye 是一个给 AI 编程 CLI 用的自动确认工具。名字读起来就是 
 - `aye-darwin-x64.tar.gz`
 - `aye-darwin-arm64.tar.gz`
 
+实际文件名会包含版本号，例如 `aye-v0.0.2-darwin-arm64.tar.gz`。
+
 Linux x64：
 
 ```sh
-tar -xzf aye-linux-x64.tar.gz
+tar -xzf aye-v0.0.2-linux-x64.tar.gz
 chmod +x aye
 ./aye claude
 ```
 
-Linux ARM64 把文件名换成 `aye-linux-arm64.tar.gz`。
+Linux ARM64 把文件名换成 `aye-v0.0.2-linux-arm64.tar.gz`。
 
 macOS Apple Silicon：
 
 ```sh
-tar -xzf aye-darwin-arm64.tar.gz
+tar -xzf aye-v0.0.2-darwin-arm64.tar.gz
 chmod +x aye
 ./aye claude
 ```
 
-macOS Intel 把文件名换成 `aye-darwin-x64.tar.gz`。
+macOS Intel 把文件名换成 `aye-v0.0.2-darwin-x64.tar.gz`。
 
 如果 macOS 提示无法打开下载的文件，先移除 quarantine 标记：
 
@@ -70,6 +72,18 @@ aye codex --model gpt-5
 ```
 
 Aye 会用伪终端运行目标命令，所以被包装的 CLI 仍然保持交互式体验。你可以正常输入，也可以用 `Ctrl+C` 中断。
+
+查看版本：
+
+```sh
+aye --version
+```
+
+更新到 GitHub Releases 里的最新版本：
+
+```sh
+aye update
+```
 
 Claude 官方也支持 `--dangerously-skip-permissions` 参数；如果你的场景可以接受它的风险，推荐优先使用官方命令行能力。
 

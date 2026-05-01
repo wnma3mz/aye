@@ -11,26 +11,26 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.artifact }}
+    name: Build aye-${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: aye-linux-x64
+            platform: linux-x64
             binary: aye
             archive: tar.gz
           - os: ubuntu-24.04-arm
-            artifact: aye-linux-arm64
+            platform: linux-arm64
             binary: aye
             archive: tar.gz
           - os: macos-13
-            artifact: aye-darwin-x64
+            platform: darwin-x64
             binary: aye
             archive: tar.gz
           - os: macos-14
-            artifact: aye-darwin-arm64
+            platform: darwin-arm64
             binary: aye
             archive: tar.gz
 
@@ -54,29 +54,31 @@ jobs:
       - name: Build binary
         run: uv run --group build python scripts/build.py --clean
 
+      - name: Set archive name
+        shell: bash
+        run: echo "ARCHIVE_NAME=aye-${GITHUB_REF_NAME}-${{ matrix.platform }}.tar.gz" >> "$GITHUB_ENV"
+
       - name: Stage binary
         shell: bash
         run: |
-          mkdir -p artifacts/${{ matrix.artifact }}
-          cp dist/${{ matrix.binary }} artifacts/${{ matrix.artifact }}/
-          chmod +x artifacts/${{ matrix.artifact }}/${{ matrix.binary }} || true
+          mkdir -p artifacts/${{ matrix.platform }}
+          cp dist/${{ matrix.binary }} artifacts/${{ matrix.platform }}/
+          chmod +x artifacts/${{ matrix.platform }}/${{ matrix.binary }} || true
 
       - name: Create tar.gz archive
         if: matrix.archive == 'tar.gz'
         shell: bash
-        run: tar -czf ${{ matrix.artifact }}.tar.gz -C artifacts/${{ matrix.artifact }} .
+        run: tar -czf "$ARCHIVE_NAME" -C artifacts/${{ matrix.platform }} .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
-          path: |
-            ${{ matrix.artifact }}.tar.gz
+          name: aye-${{ github.ref_name }}-${{ matrix.platform }}
+          path: ${{ env.ARCHIVE_NAME }}
           if-no-files-found: ignore
 
       - name: Upload release assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          files: |
-            ${{ matrix.artifact }}.tar.gz
+          files: ${{ env.ARCHIVE_NAME }}
