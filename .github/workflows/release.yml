@@ -67,7 +67,7 @@ jobs:
         run: tar -czf ${{ matrix.artifact }}.tar.gz -C artifacts/${{ matrix.artifact }} .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: |
