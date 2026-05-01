@@ -16,10 +16,11 @@ import certifi
 from . import __version__
 
 
-LATEST_RELEASE_URL = "https://api.github.com/repos/wnma3mz/aye/releases/latest"
+RELEASES_API_URL = "https://api.github.com/repos/wnma3mz/aye/releases"
+LATEST_RELEASE_URL = f"{RELEASES_API_URL}/latest"
 
 
-def update_current_binary(*, current_executable: str) -> int:
+def update_current_binary(*, current_executable: str, check_only: bool = False) -> int:
     target = Path(current_executable).resolve()
     if not target.exists():
         print("Cannot find current executable. Download the latest release manually.")
@@ -31,11 +32,15 @@ def update_current_binary(*, current_executable: str) -> int:
         asset_name = _asset_name(tag)
         asset_url = _asset_url(release, asset_name)
     except (KeyError, RuntimeError, urllib.error.URLError) as exc:
-        print(f"Unable to check latest release: {exc}")
+        print(f"Unable to check release: {exc}")
         return 1
 
     if tag.lstrip("v") == __version__:
         print(f"aye is already up to date ({tag}).")
+        return 0
+
+    if check_only:
+        print(f"Update available: aye {__version__} -> {tag}.")
         return 0
 
     print(f"Updating aye {__version__} -> {tag}...")
@@ -59,8 +64,12 @@ def update_current_binary(*, current_executable: str) -> int:
 
 
 def _fetch_latest_release() -> dict:
+    return _fetch_json(LATEST_RELEASE_URL)
+
+
+def _fetch_json(url: str) -> dict:
     request = urllib.request.Request(
-        LATEST_RELEASE_URL,
+        url,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "aye-updater"},
     )
     with urllib.request.urlopen(request, timeout=20, context=_ssl_context()) as response:

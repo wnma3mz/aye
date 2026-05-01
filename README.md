@@ -6,28 +6,24 @@ Aye 是一个给 AI 编程 CLI 用的自动确认工具。名字读起来就是 
 
 ## 下载使用
 
-到 GitHub Releases 下载对应平台的文件：
-
-- `aye-linux-x64.tar.gz`
-- `aye-linux-arm64.tar.gz`
-- `aye-darwin-arm64.tar.gz`
-
-实际文件名会包含版本号，例如 `aye-v0.0.3-darwin-arm64.tar.gz`。
+到 [GitHub Releases](https://github.com/wnma3mz/aye/releases/latest) 下载最新版。
 
 Linux x64：
 
 ```sh
-tar -xzf aye-v0.0.3-linux-x64.tar.gz
+curl -L -o aye-linux-x64.tar.gz https://github.com/wnma3mz/aye/releases/latest/download/aye-linux-x64.tar.gz
+tar -xzf aye-linux-x64.tar.gz
 chmod +x aye
 ./aye claude
 ```
 
-Linux ARM64 把文件名换成 `aye-v0.0.3-linux-arm64.tar.gz`。
+Linux ARM64 把文件名换成 `aye-linux-arm64.tar.gz`。
 
 macOS Apple Silicon：
 
 ```sh
-tar -xzf aye-v0.0.3-darwin-arm64.tar.gz
+curl -L -o aye-darwin-arm64.tar.gz https://github.com/wnma3mz/aye/releases/latest/download/aye-darwin-arm64.tar.gz
+tar -xzf aye-darwin-arm64.tar.gz
 chmod +x aye
 ./aye claude
 ```
@@ -82,6 +78,19 @@ aye --version
 
 ```sh
 aye update
+aye update --check
+```
+
+检查本机环境：
+
+```sh
+aye doctor
+```
+
+需要排查匹配行为时，可以加 `--verbose` 查看 Aye 的诊断日志：
+
+```sh
+aye --verbose claude
 ```
 
 Claude 官方也支持 `--dangerously-skip-permissions` 参数；如果你的场景可以接受它的风险，推荐优先使用官方命令行能力。

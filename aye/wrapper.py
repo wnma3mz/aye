@@ -8,7 +8,7 @@ import sys
 import time
 
 from .config import AyeConfig
-from .detectors import BlockedCommandMatch, PromptMatch, find_blocked_command, find_confirmation
+from .detectors import BlockedCommandMatch, PromptMatch, find_blocked_command, find_confirmation, latest_shell_command, shell_commands
 
 
 def run_wrapped_command(
@@ -18,6 +18,7 @@ def run_wrapped_command(
     dry_run: bool = False,
     exit_on_idle: float | None = None,
     fifo: bool = False,
+    verbose: bool = False,
 ) -> int:
     if not command:
         raise ValueError("No command provided to wrap.")
@@ -29,8 +30,9 @@ def run_wrapped_command(
             dry_run=dry_run,
             exit_on_idle=exit_on_idle,
             fifo=fifo,
+            verbose=verbose,
         )
-    return _run_pipe_fallback(command, config, dry_run=dry_run)
+    return _run_pipe_fallback(command, config, dry_run=dry_run, verbose=verbose)
 
 
 def _run_posix_pty(
@@ -40,6 +42,7 @@ def _run_posix_pty(
     dry_run: bool,
     exit_on_idle: float | None,
     fifo: bool,
+    verbose: bool,
 ) -> int:
     import pty
     import selectors
@@ -68,7 +71,7 @@ def _run_posix_pty(
         selector.register(fifo_fd, selectors.EVENT_READ)
 
     rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 4, 80))
-    detector = ConfirmationResponder(config=config, dry_run=dry_run)
+    detector = ConfirmationResponder(config=config, dry_run=dry_run, verbose=verbose)
     last_activity_at = time.monotonic()
 
     try:
@@ -81,16 +84,19 @@ def _run_posix_pty(
                     sys.stdout.buffer.write(chunk)
                     sys.stdout.buffer.flush()
                     rolling_output.append_bytes(chunk)
+                    detector.maybe_blocked(rolling_output.text)
                     detector.maybe_confirm(master_fd, rolling_output.text)
                     last_activity_at = time.monotonic()
                 elif key.fileobj == stdin_fd:
                     user_input = _read_available(stdin_fd)
                     if user_input:
+                        detector.clear_blocked()
                         os.write(master_fd, user_input)
                         last_activity_at = time.monotonic()
                 elif key.fileobj == fifo_fd:
                     fifo_input = _read_available(fifo_fd)
                     if fifo_input:
+                        detector.clear_blocked()
                         os.write(master_fd, fifo_input)
                         last_activity_at = time.monotonic()
             if exit_on_idle is not None and time.monotonic() - last_activity_at >= exit_on_idle:
@@ -118,7 +124,7 @@ def _run_posix_pty(
                 pass
 
 
-def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool) -> int:
+def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool, verbose: bool) -> int:
     process = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -130,7 +136,7 @@ def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool) 
     assert process.stdin is not None
 
     rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 4, 80))
-    detector = ConfirmationResponder(config=config, dry_run=dry_run)
+    detector = ConfirmationResponder(config=config, dry_run=dry_run, verbose=verbose)
 
     while True:
         chunk = process.stdout.read(1)
@@ -139,43 +145,81 @@ def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool) 
         sys.stdout.buffer.write(chunk)
         sys.stdout.buffer.flush()
         rolling_output.append_bytes(chunk)
+        detector.maybe_blocked(rolling_output.text)
         detector.maybe_confirm(process.stdin, rolling_output.text)
 
     return process.wait()
 
 
 class ConfirmationResponder:
-    def __init__(self, *, config: AyeConfig, dry_run: bool) -> None:
+    def __init__(self, *, config: AyeConfig, dry_run: bool, verbose: bool = False) -> None:
         self.config = config
         self.dry_run = dry_run
+        self.verbose = verbose
         self.last_action_at = 0.0
         self.last_signature: tuple[str, str] | None = None
         self.last_blocked_signature: tuple[str, str] | None = None
+        self.blocked_until_manual_input = False
+        self.last_shell_command: str | None = None
 
     def maybe_confirm(self, target, text: str) -> None:
         match = find_confirmation(text, self.config.rules, scan_lines=self.config.scan_lines)
         if match is None:
             return
 
-        blocked = find_blocked_command(text, scan_lines=self.config.scan_lines)
+        if self.blocked_until_manual_input:
+            return
+
+        command = latest_shell_command(text)
+        blocked = find_blocked_command(command, scan_lines=0) if command is not None else find_blocked_command(text, scan_lines=self.config.scan_lines)
         if blocked is not None:
             self._report_blocked(blocked)
+            self.blocked_until_manual_input = True
             return
 
         if not self._should_answer(match):
             return
 
-        print(_describe_match(match, dry_run=self.dry_run), file=sys.stderr, flush=True)
+        if self.verbose:
+            print(_describe_match(match, dry_run=self.dry_run), file=sys.stderr, flush=True)
         if not self.dry_run:
             _write_answer(target, match.answer)
         self.last_action_at = time.monotonic()
         self.last_signature = (match.rule_name, match.excerpt)
 
+    def maybe_blocked(self, text: str) -> bool:
+        commands = shell_commands(text)
+        if commands:
+            for command in commands:
+                if command == self.last_shell_command:
+                    continue
+                self.last_shell_command = command
+                blocked_command = find_blocked_command(command, scan_lines=0)
+                if blocked_command is None:
+                    self.blocked_until_manual_input = False
+                    continue
+                self._report_blocked(blocked_command)
+                self.blocked_until_manual_input = True
+            return self.blocked_until_manual_input
+
+        if text != self.last_shell_command:
+            blocked_command = find_blocked_command(text, scan_lines=self.config.scan_lines)
+            if blocked_command is None:
+                return False
+            self._report_blocked(blocked_command)
+            self.blocked_until_manual_input = True
+            return True
+        return self.blocked_until_manual_input
+
+    def clear_blocked(self) -> None:
+        self.blocked_until_manual_input = False
+
     def _report_blocked(self, match: BlockedCommandMatch) -> None:
         signature = (match.rule_name, match.excerpt)
         if signature == self.last_blocked_signature:
             return
-        print(_describe_blocked(match), file=sys.stderr, flush=True)
+        if self.verbose:
+            print(_describe_blocked(match), file=sys.stderr, flush=True)
         self.last_blocked_signature = signature
 
     def _should_answer(self, match: PromptMatch) -> bool:
@@ -238,7 +282,7 @@ def _terminate_process(process: subprocess.Popen) -> None:
 
 
 def _write_answer(target, answer: str) -> None:
-    payload = f"{answer}\n".encode()
+    payload = f"{answer}\r".encode()
     if isinstance(target, int):
         os.write(target, payload)
         return

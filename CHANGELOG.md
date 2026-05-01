@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4 - 2026-05-01
+
+- Improve Claude-style menu detection across ANSI, cursor, numbered, and described choice formats.
+- Send carriage return for menu selections so TUI prompts receive a real Enter key.
+- Scope dangerous-command blocking to the current `Bash(...)` command, preventing `rm` prompts while allowing later safe commands.
+- Keep Aye diagnostic logs quiet by default and expose them through `--verbose`.
+- Add end-to-end tests for menu confirmation, dangerous command blocking, and quiet logging.
+
 ## 0.0.3 - 2026-05-01
 
 - Bundle trusted CA certificates for `aye update` in packaged macOS binaries.

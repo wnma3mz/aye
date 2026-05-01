@@ -10,7 +10,7 @@ from .detectors import DEFAULT_RULES, PromptRule
 
 @dataclass(frozen=True)
 class AyeConfig:
-    scan_lines: int = 12
+    scan_lines: int = 20
     cooldown_seconds: float = 8.0
     rules: tuple[PromptRule, ...] = field(default_factory=lambda: DEFAULT_RULES)
 
@@ -30,7 +30,7 @@ def load_config(path: str | Path | None) -> AyeConfig:
 
 def default_config_json() -> str:
     data: dict[str, Any] = {
-        "scan_lines": 12,
+        "scan_lines": 20,
         "cooldown_seconds": 8.0,
         "rules": [
             {"name": rule.name, "pattern": rule.pattern, "answer": rule.answer}

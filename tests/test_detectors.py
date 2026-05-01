@@ -35,6 +35,70 @@ class DetectorTests(unittest.TestCase):
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
         self.assertEqual(match.answer, "")
 
+    def test_detects_claude_three_choice_permission_menu(self) -> None:
+        text = "\x1b[36mDo you want to proceed?\x1b[0m\n❯ 1. Yes\n  2. Yes, allow reading from tmp/ from this project\n  3. No"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+        self.assertEqual(match.answer, "")
+
+    def test_detects_claude_menu_with_choice_descriptions(self) -> None:
+        text = (
+            "确认操作\n"
+            "是否继续执行该操作?\n"
+            "\n"
+            "1. Yes\n"
+            "   确认继续执行\n"
+            "2. No\n"
+            "   取消操作\n"
+            "3. Type Something.\n"
+            "\n"
+            "4. Chat about this\n"
+            "Enter to select"
+        )
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+        self.assertEqual(match.answer, "")
+
+    def test_detects_carriage_return_menu_output(self) -> None:
+        text = "Do you want to proceed?\r\n> 1) Yes\r\n   Continue\r\n  2) No\r\n   Cancel"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+
+    def test_detects_bracket_numbered_menu(self) -> None:
+        text = "Confirm operation\n[1] Yes\n[2] No\nEnter to select"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+
+    def test_does_not_confirm_menu_when_yes_is_not_first_choice(self) -> None:
+        text = "Confirm operation\n1. No\n2. Yes"
+
+        match = find_confirmation(text)
+
+        self.assertIsNone(match)
+
+    def test_does_not_confirm_bare_numbered_yes_no_list(self) -> None:
+        text = "Options:\n1. Yes\n2. No"
+
+        match = find_confirmation(text)
+
+        self.assertIsNone(match)
+
     def test_detects_tool_permission_yn_prompt(self) -> None:
         text = "Allow this command to run? [y/N]"
 

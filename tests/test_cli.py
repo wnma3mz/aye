@@ -23,6 +23,21 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         update.assert_called_once()
+        self.assertFalse(update.call_args.kwargs["check_only"])
+
+    def test_update_check_is_forwarded(self) -> None:
+        with patch("aye.cli.update_current_binary", return_value=0) as update:
+            exit_code = main(["update", "--check"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(update.call_args.kwargs["check_only"])
+
+    def test_doctor_command_calls_doctor(self) -> None:
+        with patch("aye.cli.run_doctor", return_value=0) as doctor:
+            exit_code = main(["doctor"])
+
+        self.assertEqual(exit_code, 0)
+        doctor.assert_called_once()
 
 
 if __name__ == "__main__":

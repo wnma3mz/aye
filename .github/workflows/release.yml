@@ -52,7 +52,9 @@ jobs:
 
       - name: Set archive name
         shell: bash
-        run: echo "ARCHIVE_NAME=aye-${GITHUB_REF_NAME}-${{ matrix.platform }}.tar.gz" >> "$GITHUB_ENV"
+        run: |
+          echo "ARCHIVE_NAME=aye-${GITHUB_REF_NAME}-${{ matrix.platform }}.tar.gz" >> "$GITHUB_ENV"
+          echo "LATEST_ARCHIVE_NAME=aye-${{ matrix.platform }}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Stage binary
         shell: bash
@@ -64,17 +66,23 @@ jobs:
       - name: Create tar.gz archive
         if: matrix.archive == 'tar.gz'
         shell: bash
-        run: tar -czf "$ARCHIVE_NAME" -C artifacts/${{ matrix.platform }} .
+        run: |
+          tar -czf "$ARCHIVE_NAME" -C artifacts/${{ matrix.platform }} .
+          cp "$ARCHIVE_NAME" "$LATEST_ARCHIVE_NAME"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: aye-${{ github.ref_name }}-${{ matrix.platform }}
-          path: ${{ env.ARCHIVE_NAME }}
+          path: |
+            ${{ env.ARCHIVE_NAME }}
+            ${{ env.LATEST_ARCHIVE_NAME }}
           if-no-files-found: ignore
 
       - name: Upload release assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          files: ${{ env.ARCHIVE_NAME }}
+          files: |
+            ${{ env.ARCHIVE_NAME }}
+            ${{ env.LATEST_ARCHIVE_NAME }}

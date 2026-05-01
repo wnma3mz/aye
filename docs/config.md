@@ -16,7 +16,7 @@ aye --config aye.json claude
 
 ## 配置项
 
-`scan_lines`：只检查终端最近多少行输出。默认是 `12`。数值越小越保守，越不容易误匹配旧内容。
+`scan_lines`：只检查终端最近多少行输出。默认是 `20`。数值越小越保守，越不容易误匹配旧内容。
 
 `cooldown_seconds`：两次自动确认之间的最短间隔。默认是 `8.0` 秒，用来避免同一个提示被重复确认。
 
@@ -30,7 +30,7 @@ aye --config aye.json claude
 
 ```json
 {
-  "scan_lines": 12,
+  "scan_lines": 20,
   "cooldown_seconds": 8.0,
   "rules": [
     {
@@ -50,7 +50,7 @@ aye --config aye.json claude
     },
     {
       "name": "ai-cli-yes-choice",
-      "pattern": "(^|\\n)\\s*(?:>\\s*)?(?:1[.)]\\s*)?yes\\b[^\\n]*\\n\\s*(?:2[.)]\\s*)?no\\b",
+      "pattern": "(^|\\n)\\s*(?:[^\\w\\s]\\s*)?\\[?1[.)\\]]\\s*yes\\b[\\s\\S]{0,600}\\n\\s*(?:[^\\w\\s]\\s*)?\\[?\\d+[.)\\]]\\s*no\\b",
       "answer": ""
     }
   ]
