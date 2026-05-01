@@ -85,6 +85,33 @@ class DetectorTests(unittest.TestCase):
         assert match is not None
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
 
+    def test_detects_lettered_menu(self) -> None:
+        text = "Confirm operation\nA. Yes, proceed\nB. No, cancel"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+
+    def test_detects_bulleted_menu(self) -> None:
+        text = "Press enter to confirm\n- Yes, proceed\n- No, cancel"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+
+    def test_detects_plain_yes_no_choice_lines_with_context(self) -> None:
+        text = "Do you want to proceed?\nYes, proceed\nNo, cancel"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+
     def test_does_not_confirm_menu_when_yes_is_not_first_choice(self) -> None:
         text = "Confirm operation\n1. No\n2. Yes"
 
@@ -94,6 +121,13 @@ class DetectorTests(unittest.TestCase):
 
     def test_does_not_confirm_bare_numbered_yes_no_list(self) -> None:
         text = "Options:\n1. Yes\n2. No"
+
+        match = find_confirmation(text)
+
+        self.assertIsNone(match)
+
+    def test_does_not_confirm_sentence_containing_yes_and_no(self) -> None:
+        text = "Confirm the docs mention yes and no in prose."
 
         match = find_confirmation(text)
 

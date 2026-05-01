@@ -41,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         command,
         config,
         verbose=args.verbose,
+        fifo=args.fifo,
     )
 
 
@@ -51,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--config", help="Path to a JSON configuration file.")
     parser.add_argument("--verbose", action="store_true", help="Print aye diagnostic logs.")
+    parser.add_argument("--fifo", action="store_true", help="Create a FIFO pipe for external input.")
     parser.add_argument("--version", action="store_true", help="Print the aye version and exit.")
     parser.add_argument("wrapped_command", nargs=argparse.REMAINDER, help="Command to run. Defaults to claude.")
     return parser

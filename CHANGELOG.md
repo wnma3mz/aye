@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.5 - 2026-05-01
+
+- Generalize menu detection to support numbered, lettered, bulleted, cursor-prefixed, and plain `Yes`/`No` choice lines.
+- Add Codex file-edit and generic plain-choice end-to-end prompt tests.
+- Restore `--fifo` as an explicit advanced input channel.
+- Run CI tests across Python 3.10, 3.11, and 3.12.
+- Improve packaged updater replacement to use a staging file and atomic rename.
+
 ## 0.0.4 - 2026-05-01
 
 - Improve Claude-style menu detection across ANSI, cursor, numbered, and described choice formats.

@@ -37,6 +37,65 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("received='\\r'", result.stdout)
         self.assertNotIn("Auto-confirming", result.stderr)
 
+    def test_cli_confirms_codex_file_edit_menu_with_enter(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print("1. Yes, proceed (y)", flush=True)
+            print("2. Yes, and don't ask again for these files (a)", flush=True)
+            print("3. No, and tell Codex what to do differently (esc)", flush=True)
+            print("Press enter to confirm or esc to cancel", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                char = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={char!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
+    def test_cli_confirms_plain_yes_no_choice_lines_with_enter(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print("Do you want to proceed?", flush=True)
+            print("Yes, proceed", flush=True)
+            print("No, cancel", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                char = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={char!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
     def test_cli_confirms_codex_style_yn_permission_with_y(self) -> None:
         code = textwrap.dedent(
             r"""

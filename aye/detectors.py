@@ -6,7 +6,11 @@ from typing import Iterable
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
-MENU_CHOICE_RE = re.compile(r"^\s*(?:[^\w\s]\s*)?\[?(?P<number>\d+)[.)\]]\s*(?P<label>.+?)\s*$")
+MENU_CHOICE_RE = re.compile(
+    r"^\s*(?:[>❯›»►▸▶︎•●◦○◆◇▪︎-]\s*)?"
+    r"(?:(?:\[\s*)?(?:\d+|[A-Za-z])(?:\s*\])?[.)]?\s+|[-*]\s+)?"
+    r"(?P<label>.+?)\s*$"
+)
 MENU_CONTEXT_RE = re.compile(
     r"(do you want|would you like|proceed|continue|confirm|allow|permission|operation|execute|run|enter to select|"
     r"是否|确认|继续|执行|允许|选择)",
@@ -23,7 +27,7 @@ class PromptRule:
     flags: int = re.IGNORECASE | re.MULTILINE
 
     def compile(self) -> re.Pattern[str]:
-        return re.compile(self.pattern, self.flags)
+        return _compile_pattern(self.pattern, self.flags)
 
 
 @dataclass(frozen=True)
@@ -40,7 +44,19 @@ class BlockedCommandRule:
     flags: int = re.IGNORECASE | re.MULTILINE
 
     def compile(self) -> re.Pattern[str]:
-        return re.compile(self.pattern, self.flags)
+        return _compile_pattern(self.pattern, self.flags)
+
+
+_PATTERN_CACHE: dict[tuple[str, int], re.Pattern[str]] = {}
+
+
+def _compile_pattern(pattern: str, flags: int) -> re.Pattern[str]:
+    key = (pattern, flags)
+    compiled = _PATTERN_CACHE.get(key)
+    if compiled is None:
+        compiled = re.compile(pattern, flags)
+        _PATTERN_CACHE[key] = compiled
+    return compiled
 
 
 @dataclass(frozen=True)
@@ -161,7 +177,7 @@ def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
     lines = text.splitlines()
     for yes_index, line in enumerate(lines):
         yes_choice = _parse_menu_choice(line)
-        if yes_choice != (1, "yes"):
+        if yes_choice != "yes":
             continue
 
         no_index = _find_following_no_choice(lines, yes_index)
@@ -185,23 +201,18 @@ def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
 def _find_following_no_choice(lines: list[str], yes_index: int) -> int | None:
     for index in range(yes_index + 1, min(len(lines), yes_index + 14)):
         choice = _parse_menu_choice(lines[index])
-        if choice is None:
-            continue
-        number, label = choice
-        if number <= 1:
-            continue
-        if label == "no":
+        if choice == "no":
             return index
     return None
 
 
-def _parse_menu_choice(line: str) -> tuple[int, str] | None:
+def _parse_menu_choice(line: str) -> str | None:
     match = MENU_CHOICE_RE.match(line)
     if match is None:
         return None
     label = match.group("label").strip().lower()
     if label.startswith("yes"):
-        return int(match.group("number")), "yes"
+        return "yes"
     if label.startswith("no"):
-        return int(match.group("number")), "no"
-    return int(match.group("number")), label
+        return "no"
+    return None

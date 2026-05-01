@@ -126,17 +126,29 @@ def _extract_archive(archive_path: Path, extract_dir: Path) -> None:
 
 def _replace_executable(target: Path, replacement: Path) -> None:
     target_mode = target.stat().st_mode
-    replacement.chmod(target_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    final_mode = target_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    replacement.chmod(final_mode)
+
+    # Write to a sibling temp file, chmod, then rename over the target.
+    # rename() is atomic on POSIX, so the window where the executable is
+    # missing or has wrong permissions is minimised.
+    staging = target.with_name(f"{target.name}.new")
     backup = target.with_name(f"{target.name}.old")
-    if backup.exists():
-        backup.unlink()
-    target.rename(backup)
     try:
-        shutil.copy2(replacement, target)
-        os.chmod(target, target_mode | stat.S_IXUSR)
+        shutil.copy2(replacement, staging)
+        os.chmod(staging, final_mode)
+        if backup.exists():
+            backup.unlink()
+        target.rename(backup)
+        staging.rename(target)
     except Exception:
-        if target.exists():
-            target.unlink()
-        backup.rename(target)
+        # Best-effort rollback: restore backup if rename failed.
+        if not target.exists() and backup.exists():
+            backup.rename(target)
+        if staging.exists():
+            staging.unlink()
         raise
+    # Clean up staging (already renamed) and backup.
+    if staging.exists():
+        staging.unlink()
     backup.unlink()

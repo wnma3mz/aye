@@ -139,7 +139,7 @@ def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool, 
     detector = ConfirmationResponder(config=config, dry_run=dry_run, verbose=verbose)
 
     while True:
-        chunk = process.stdout.read(1)
+        chunk = process.stdout.read(4096)
         if not chunk:
             break
         sys.stdout.buffer.write(chunk)
@@ -188,27 +188,41 @@ class ConfirmationResponder:
         self.last_signature = (match.rule_name, match.excerpt)
 
     def maybe_blocked(self, text: str) -> bool:
+        # Path 1: text contains extracted Bash(...) commands — check each one
+        # individually so that a new safe command clears a previous block.
         commands = shell_commands(text)
         if commands:
-            for command in commands:
-                if command == self.last_shell_command:
-                    continue
-                self.last_shell_command = command
-                blocked_command = find_blocked_command(command, scan_lines=0)
-                if blocked_command is None:
-                    self.blocked_until_manual_input = False
-                    continue
-                self._report_blocked(blocked_command)
-                self.blocked_until_manual_input = True
-            return self.blocked_until_manual_input
+            return self._check_extracted_commands(commands)
 
-        if text != self.last_shell_command:
-            blocked_command = find_blocked_command(text, scan_lines=self.config.scan_lines)
+        # Path 2: no structured Bash(...) pattern found; fall back to scanning
+        # the full text against blocked-command rules.  Guard against re-checking
+        # the same raw text that was already processed.
+        if text == self.last_shell_command:
+            return self.blocked_until_manual_input
+        blocked_command = find_blocked_command(text, scan_lines=self.config.scan_lines)
+        if blocked_command is None:
+            return False
+        self._report_blocked(blocked_command)
+        self.blocked_until_manual_input = True
+        return True
+
+    def _check_extracted_commands(self, commands: list[str]) -> bool:
+        """Check each extracted shell command for dangerous patterns.
+
+        The last command in the list determines the final blocked state:
+        if the most recent command is safe, we clear the block so the
+        responder can auto-confirm the next prompt.
+        """
+        for command in commands:
+            if command == self.last_shell_command:
+                continue
+            self.last_shell_command = command
+            blocked_command = find_blocked_command(command, scan_lines=0)
             if blocked_command is None:
-                return False
+                self.blocked_until_manual_input = False
+                continue
             self._report_blocked(blocked_command)
             self.blocked_until_manual_input = True
-            return True
         return self.blocked_until_manual_input
 
     def clear_blocked(self) -> None:
