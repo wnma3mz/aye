@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aye-cli"
+version = "0.0.1"
+description = "A lightweight AI coding CLI wrapper that auto-confirms explicit terminal prompts."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Aye" }]
+license = { text = "MIT" }
+keywords = ["ai", "cli", "automation", "claude", "gemini", "codex"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Terminals",
+]
+
+[project.urls]
+Homepage = "https://github.com/wnma3mz/aye"
+Repository = "https://github.com/wnma3mz/aye"
+Issues = "https://github.com/wnma3mz/aye/issues"
+
+[project.scripts]
+aye = "consent_pilot.cli:main"
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6"]
+
+[dependency-groups]
+build = ["pyinstaller>=6"]
+
+[tool.setuptools.packages.find]
+include = ["consent_pilot*"]
