@@ -1,4 +1,4 @@
-from consent_pilot.cli import main
+from aye.cli import main
 
 
 if __name__ == "__main__":

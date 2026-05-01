@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from consent_pilot.config import load_config
+from aye.config import load_config
 
 
 class ConfigTests(unittest.TestCase):

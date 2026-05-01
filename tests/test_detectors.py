@@ -1,6 +1,6 @@
 import unittest
 
-from consent_pilot.detectors import find_blocked_command, find_confirmation, last_lines
+from aye.detectors import find_blocked_command, find_confirmation, last_lines
 
 
 class DetectorTests(unittest.TestCase):

@@ -1,9 +1,9 @@
 import io
 import unittest
 
-from consent_pilot.config import AyeConfig
-from consent_pilot.cli import _wrapped_command
-from consent_pilot.wrapper import ConfirmationResponder, RollingTextBuffer
+from aye.config import AyeConfig
+from aye.cli import _wrapped_command
+from aye.wrapper import ConfirmationResponder, RollingTextBuffer
 
 
 class WrapperTests(unittest.TestCase):

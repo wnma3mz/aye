@@ -7,7 +7,7 @@ import sys
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ENTRYPOINT = PROJECT_ROOT / "scripts" / "consent_pilot_entry.py"
+ENTRYPOINT = PROJECT_ROOT / "scripts" / "aye_entry.py"
 
 
 def main() -> int:
