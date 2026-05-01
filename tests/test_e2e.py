@@ -37,6 +37,62 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("received='\\r'", result.stdout)
         self.assertNotIn("Auto-confirming", result.stderr)
 
+    def test_cli_confirms_codex_style_yn_permission_with_y(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print("Codex wants to run a shell command", flush=True)
+            print("Allow this command to run? [y/N]", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                chars = sys.stdin.read(2)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={chars!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='y\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
+    def test_cli_confirms_gemini_style_yn_permission_with_y(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print("Gemini wants to execute a command", flush=True)
+            print("Approve command execution? (y/N)", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                chars = sys.stdin.read(2)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={chars!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='y\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
     def test_cli_does_not_confirm_bare_yes_no_list(self) -> None:
         code = textwrap.dedent(
             r"""
