@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.7 - 2026-05-03
+
+- Add direct handling for TUI menus where the first `Yes` choice is already selected before the full menu is observed.
+
 ## 0.0.6 - 2026-05-03
 
 - Improve Codex TUI menu detection across long command blocks and ANSI cursor redraws.

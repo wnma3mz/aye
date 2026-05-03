@@ -87,6 +87,16 @@ class DetectorTests(unittest.TestCase):
         self.assertEqual(match.rule_name, "claude-theme-choice")
         self.assertEqual(match.answer, "")
 
+    def test_detects_selected_first_yes_choice_before_full_menu_arrives(self) -> None:
+        text = "❯ 1. Yes"
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "selected-first-yes-choice")
+        self.assertEqual(match.answer, "")
+
     def test_detects_press_enter_to_continue_prompt(self) -> None:
         text = "Press Enter to continue"
 

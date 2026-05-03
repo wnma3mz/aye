@@ -106,6 +106,11 @@ DEFAULT_RULES: tuple[PromptRule, ...] = (
         pattern=r"(^|\n)\s*(?:[^\w\s]\s*)?\[?1[.)\]]\s*yes\b[\s\S]{0,600}\n\s*(?:[^\w\s]\s*)?\[?\d+[.)\]]\s*no\b",
         answer="",
     ),
+    PromptRule(
+        name="selected-first-yes-choice",
+        pattern=r"^\s*[>❯›»]\s*1[.)]\s*Yes\b",
+        answer="",
+    ),
 )
 
 
