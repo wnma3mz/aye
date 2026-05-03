@@ -71,15 +71,14 @@ class EndToEndTests(unittest.TestCase):
             import termios
             import tty
 
-            print("1. Yes, proceed (y)", flush=True)
-            print("2. Yes, and don't ask again for these files (a)", flush=True)
-            print("3. No, and tell Codex what to do differently (esc)", flush=True)
-            print("Press enter to confirm or esc to cancel", flush=True)
-
             fd = sys.stdin.fileno()
             old = termios.tcgetattr(fd)
             tty.setraw(fd)
             try:
+                print("1. Yes, proceed (y)", flush=True)
+                print("2. Yes, and don't ask again for these files (a)", flush=True)
+                print("3. No, and tell Codex what to do differently (esc)", flush=True)
+                print("Press enter to confirm or esc to cancel", flush=True)
                 char = sys.stdin.read(1)
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -282,22 +281,21 @@ class EndToEndTests(unittest.TestCase):
             import termios
             import tty
 
-            print("Bash(rm -rf /tmp/test_demo_dir)", flush=True)
-            print("Waiting...", flush=True)
-            print("Bash(git push origin main)", flush=True)
-            print("Running...", flush=True)
-            print("Bash command", flush=True)
-            print("git push origin main", flush=True)
-            print("Do you want to proceed?", flush=True)
-            print("❯ 1. Yes", flush=True)
-            print("  2. Yes, and don’t ask again for: git push:*", flush=True)
-            print("  3. No", flush=True)
-            print("Esc to cancel · Enter to select", flush=True)
-
             fd = sys.stdin.fileno()
             old = termios.tcgetattr(fd)
             tty.setraw(fd)
             try:
+                print("Bash(rm -rf /tmp/test_demo_dir)", flush=True)
+                print("Waiting...", flush=True)
+                print("Bash(git push origin main)", flush=True)
+                print("Running...", flush=True)
+                print("Bash command", flush=True)
+                print("git push origin main", flush=True)
+                print("Do you want to proceed?", flush=True)
+                print("❯ 1. Yes", flush=True)
+                print("  2. Yes, and don’t ask again for: git push:*", flush=True)
+                print("  3. No", flush=True)
+                print("Esc to cancel · Enter to select", flush=True)
                 char = sys.stdin.read(1)
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)

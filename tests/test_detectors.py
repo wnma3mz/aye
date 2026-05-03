@@ -209,7 +209,7 @@ PY
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
-        self.assertEqual(match.answer, "y")
+        self.assertEqual(match.answer, "")
 
     def test_detects_codex_menu_with_yes_hotkey(self) -> None:
         text = """Would you like to run the following command?
@@ -228,7 +228,7 @@ $ ./.venv/bin/pip install baostock
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
-        self.assertEqual(match.answer, "y")
+        self.assertEqual(match.answer, "")
 
     def test_codex_menu_prefers_enter_when_prompt_says_press_enter(self) -> None:
         text = """Would you like to run the following command?
@@ -311,7 +311,7 @@ Press enter to confirm or esc to cancel"""
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
-        self.assertEqual(match.answer, "y")
+        self.assertEqual(match.answer, "")
 
     def test_detects_menu_drawn_with_ansi_cursor_up_and_clear_line(self) -> None:
         text = (
@@ -326,7 +326,7 @@ Press enter to confirm or esc to cancel"""
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
-        self.assertEqual(match.answer, "y")
+        self.assertEqual(match.answer, "")
 
     def test_latest_shell_command_extracts_codex_dollar_command(self) -> None:
         text = "Would you like to run the following command?\n$ git status --short\n1. Yes\n2. No"

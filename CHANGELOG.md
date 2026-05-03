@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.9 - 2026-05-03
+
+- Make prompt end-to-end tests enter raw input mode before printing menus to avoid architecture-specific PTY flush races.
+- Prefer Enter for menu confirmations even when the selected item displays a `(y)` hotkey.
+
 ## 0.0.8 - 2026-05-03
 
 - Increase TUI enter-confirm stabilization delay to avoid platform-specific input flushing races.

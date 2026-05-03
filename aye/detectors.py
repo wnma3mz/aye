@@ -18,7 +18,6 @@ MENU_CONTEXT_RE = re.compile(
     re.IGNORECASE,
 )
 MENU_ENTER_CONFIRM_RE = re.compile(r"(press\s+enter|enter\s+to\s+(confirm|select))", re.IGNORECASE)
-MENU_HOTKEY_Y_RE = re.compile(r"\(\s*y\s*\)\s*$", re.IGNORECASE)
 MENU_CHOICE_SCAN_LINES = 160
 MENU_CONTEXT_LOOKBACK_LINES = 140
 MENU_NO_LOOKAHEAD_LINES = 40
@@ -256,12 +255,4 @@ def _parse_menu_choice(line: str) -> str | None:
 
 
 def _yes_choice_answer(line: str, *, excerpt_text: str, default: str) -> str:
-    if MENU_ENTER_CONFIRM_RE.search(excerpt_text):
-        return default
-    match = MENU_CHOICE_RE.match(line)
-    if match is None:
-        return default
-    label = match.group("label").strip()
-    if MENU_HOTKEY_Y_RE.search(label):
-        return "y"
     return default
