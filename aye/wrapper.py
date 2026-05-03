@@ -11,7 +11,7 @@ import time
 from .config import AyeConfig
 from .detectors import BlockedCommandMatch, PromptMatch, find_blocked_command, find_confirmation, latest_shell_command, shell_commands
 
-ENTER_CONFIRM_DELAY_SECONDS = 0.4
+ENTER_CONFIRM_DELAY_SECONDS = 0.8
 ENTER_RETRY_DELAYS_SECONDS = (1.0, 3.0)
 ROLLING_OUTPUT_MIN_LINES = 240
 

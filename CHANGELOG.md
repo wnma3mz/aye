@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.8 - 2026-05-03
+
+- Increase TUI enter-confirm stabilization delay to avoid platform-specific input flushing races.
+
 ## 0.0.7 - 2026-05-03
 
 - Add direct handling for TUI menus where the first `Yes` choice is already selected before the full menu is observed.
