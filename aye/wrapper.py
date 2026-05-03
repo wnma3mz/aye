@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 import codecs
+from dataclasses import dataclass
 import os
 import subprocess
 import sys
@@ -9,6 +10,10 @@ import time
 
 from .config import AyeConfig
 from .detectors import BlockedCommandMatch, PromptMatch, find_blocked_command, find_confirmation, latest_shell_command, shell_commands
+
+ENTER_CONFIRM_DELAY_SECONDS = 0.4
+ENTER_RETRY_DELAYS_SECONDS = (1.0, 3.0)
+ROLLING_OUTPUT_MIN_LINES = 240
 
 
 def run_wrapped_command(
@@ -70,7 +75,7 @@ def _run_posix_pty(
         fifo_path, fifo_fd = _open_fifo()
         selector.register(fifo_fd, selectors.EVENT_READ)
 
-    rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 4, 80))
+    rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 8, ROLLING_OUTPUT_MIN_LINES))
     detector = ConfirmationResponder(config=config, dry_run=dry_run, verbose=verbose)
     last_activity_at = time.monotonic()
 
@@ -84,6 +89,7 @@ def _run_posix_pty(
                     sys.stdout.buffer.write(chunk)
                     sys.stdout.buffer.flush()
                     rolling_output.append_bytes(chunk)
+                    detector.note_output()
                     detector.maybe_blocked(rolling_output.text)
                     detector.maybe_confirm(master_fd, rolling_output.text)
                     last_activity_at = time.monotonic()
@@ -99,6 +105,7 @@ def _run_posix_pty(
                         detector.clear_blocked()
                         os.write(master_fd, fifo_input)
                         last_activity_at = time.monotonic()
+            detector.maybe_retry(master_fd)
             if exit_on_idle is not None and time.monotonic() - last_activity_at >= exit_on_idle:
                 print(f"\n[aye] Idle for {exit_on_idle:g}s, exiting.", file=sys.stderr, flush=True)
                 _terminate_process(process)
@@ -135,7 +142,7 @@ def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool, 
     assert process.stdout is not None
     assert process.stdin is not None
 
-    rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 4, 80))
+    rolling_output = RollingTextBuffer(max_lines=max(config.scan_lines * 8, ROLLING_OUTPUT_MIN_LINES))
     detector = ConfirmationResponder(config=config, dry_run=dry_run, verbose=verbose)
 
     while True:
@@ -145,10 +152,18 @@ def _run_pipe_fallback(command: list[str], config: AyeConfig, *, dry_run: bool, 
         sys.stdout.buffer.write(chunk)
         sys.stdout.buffer.flush()
         rolling_output.append_bytes(chunk)
+        detector.note_output()
         detector.maybe_blocked(rolling_output.text)
         detector.maybe_confirm(process.stdin, rolling_output.text)
 
     return process.wait()
+
+
+@dataclass
+class PendingEnterRetry:
+    signature: tuple[str, str]
+    next_retry_at: float
+    attempts: int = 0
 
 
 class ConfirmationResponder:
@@ -161,6 +176,7 @@ class ConfirmationResponder:
         self.last_blocked_signature: tuple[str, str] | None = None
         self.blocked_until_manual_input = False
         self.last_shell_command: str | None = None
+        self.pending_enter_retry: PendingEnterRetry | None = None
 
     def maybe_confirm(self, target, text: str) -> None:
         match = find_confirmation(text, self.config.rules, scan_lines=self.config.scan_lines)
@@ -171,7 +187,7 @@ class ConfirmationResponder:
             return
 
         command = latest_shell_command(text)
-        blocked = find_blocked_command(command, scan_lines=0) if command is not None else find_blocked_command(text, scan_lines=self.config.scan_lines)
+        blocked = find_blocked_command(command, scan_lines=0) if command is not None else find_blocked_command(text, scan_lines=0)
         if blocked is not None:
             self._report_blocked(blocked)
             self.blocked_until_manual_input = True
@@ -183,9 +199,29 @@ class ConfirmationResponder:
         if self.verbose:
             print(_describe_match(match, dry_run=self.dry_run), file=sys.stderr, flush=True)
         if not self.dry_run:
+            if match.answer == "":
+                time.sleep(ENTER_CONFIRM_DELAY_SECONDS)
             _write_answer(target, match.answer)
         self.last_action_at = time.monotonic()
         self.last_signature = (match.rule_name, match.excerpt)
+        self._schedule_enter_retry(match)
+
+    def note_output(self) -> None:
+        self.pending_enter_retry = None
+
+    def maybe_retry(self, target) -> None:
+        retry = self.pending_enter_retry
+        if retry is None or time.monotonic() < retry.next_retry_at:
+            return
+        if self.verbose:
+            print(_describe_enter_retry(retry), file=sys.stderr, flush=True)
+        if not self.dry_run:
+            _write_answer(target, "")
+        retry.attempts += 1
+        if retry.attempts >= len(ENTER_RETRY_DELAYS_SECONDS):
+            self.pending_enter_retry = None
+            return
+        retry.next_retry_at = time.monotonic() + ENTER_RETRY_DELAYS_SECONDS[retry.attempts]
 
     def maybe_blocked(self, text: str) -> bool:
         # Path 1: text contains extracted Bash(...) commands — check each one
@@ -227,6 +263,7 @@ class ConfirmationResponder:
 
     def clear_blocked(self) -> None:
         self.blocked_until_manual_input = False
+        self.pending_enter_retry = None
 
     def _report_blocked(self, match: BlockedCommandMatch) -> None:
         signature = (match.rule_name, match.excerpt)
@@ -240,9 +277,20 @@ class ConfirmationResponder:
         signature = (match.rule_name, match.excerpt)
         if signature == self.last_signature:
             return False
-        if self.last_action_at == 0:
-            return True
-        return time.monotonic() - self.last_action_at >= self.config.cooldown_seconds
+        if self.last_signature is not None and match.rule_name == self.last_signature[0]:
+            previous_excerpt = self.last_signature[1]
+            if previous_excerpt in match.excerpt or match.excerpt in previous_excerpt:
+                return False
+        return True
+
+    def _schedule_enter_retry(self, match: PromptMatch) -> None:
+        if self.dry_run or match.answer != "":
+            self.pending_enter_retry = None
+            return
+        self.pending_enter_retry = PendingEnterRetry(
+            signature=(match.rule_name, match.excerpt),
+            next_retry_at=time.monotonic() + ENTER_RETRY_DELAYS_SECONDS[0],
+        )
 
 
 class RollingTextBuffer:
@@ -311,6 +359,10 @@ def _describe_match(match: PromptMatch, *, dry_run: bool) -> str:
 
 def _describe_blocked(match: BlockedCommandMatch) -> str:
     return f"Blocked auto-confirm: dangerous_command={match.rule_name!r} excerpt={match.excerpt!r}"
+
+
+def _describe_enter_retry(retry: PendingEnterRetry) -> str:
+    return f"Retrying auto-confirm enter: attempt={retry.attempts + 1} rule={retry.signature[0]}"
 
 
 def _copy_terminal_size(fd: int) -> None:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.6 - 2026-05-03
+
+- Improve Codex TUI menu detection across long command blocks and ANSI cursor redraws.
+- Add safer handling for Codex `$ ...` command prompts so dangerous commands remain blocked even after long output.
+- Add Claude trust-folder, theme-choice, and press-enter prompt handling.
+- Add Gemini `Allow once` menu handling.
+- Reduce missed consecutive confirmations while still avoiding repeated responses to the same prompt.
+
 ## 0.0.5 - 2026-05-01
 
 - Generalize menu detection to support numbered, lettered, bulleted, cursor-prefixed, and plain `Yes`/`No` choice lines.

@@ -5,18 +5,25 @@ import re
 from typing import Iterable
 
 
+ANSI_LAYOUT_BREAK_RE = re.compile(r"\x1b\[(?P<count>\d*)[ABEFJK]")
 ANSI_ESCAPE_RE = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 MENU_CHOICE_RE = re.compile(
-    r"^\s*(?:[>❯›»►▸▶︎•●◦○◆◇▪︎-]\s*)?"
+    r"^\s*(?:[│┃|]\s*)?(?:[>❯›»►▸▶︎•●◦○◆◇▪︎]\s*)*"
     r"(?:(?:\[\s*)?(?:\d+|[A-Za-z])(?:\s*\])?[.)]?\s+|[-*]\s+)?"
     r"(?P<label>.+?)\s*$"
 )
 MENU_CONTEXT_RE = re.compile(
-    r"(do you want|would you like|proceed|continue|confirm|allow|permission|operation|execute|run|enter to select|"
+    r"(do you want|would you like|proceed|continue|confirm|allow|permission|operation|execute|enter to select|"
     r"是否|确认|继续|执行|允许|选择)",
     re.IGNORECASE,
 )
+MENU_ENTER_CONFIRM_RE = re.compile(r"(press\s+enter|enter\s+to\s+(confirm|select))", re.IGNORECASE)
+MENU_HOTKEY_Y_RE = re.compile(r"\(\s*y\s*\)\s*$", re.IGNORECASE)
+MENU_CHOICE_SCAN_LINES = 160
+MENU_CONTEXT_LOOKBACK_LINES = 140
+MENU_NO_LOOKAHEAD_LINES = 40
 SHELL_COMMAND_RE = re.compile(r"Bash\((?P<command>[^\r\n)]*)\)")
+DOLLAR_COMMAND_RE = re.compile(r"(?m)^\s*\$\s+(?P<command>[^\r\n]+)")
 
 
 @dataclass(frozen=True)
@@ -80,6 +87,21 @@ DEFAULT_RULES: tuple[PromptRule, ...] = (
         answer="y",
     ),
     PromptRule(
+        name="claude-trust-folder",
+        pattern=r"^\s*[>❯›»]?\s*1[.)]\s*Yes,\s*I trust this folder\b",
+        answer="",
+    ),
+    PromptRule(
+        name="claude-theme-choice",
+        pattern=r"^\s*[>❯›»]?\s*1[.)]\s*Dark mode\s*✔?\s*$",
+        answer="",
+    ),
+    PromptRule(
+        name="press-enter-continue",
+        pattern=r"press\s+enter\s+to\s+continue",
+        answer="",
+    ),
+    PromptRule(
         name="ai-cli-yes-choice",
         pattern=r"(^|\n)\s*(?:[^\w\s]\s*)?\[?1[.)\]]\s*yes\b[\s\S]{0,600}\n\s*(?:[^\w\s]\s*)?\[?\d+[.)\]]\s*no\b",
         answer="",
@@ -118,7 +140,8 @@ def find_confirmation(
     searchable = _normalize_terminal_text(last_lines(text, scan_lines))
     for rule in rules:
         if rule.name == "ai-cli-yes-choice":
-            match = _find_yes_menu_choice(searchable, answer=rule.answer)
+            menu_searchable = _normalize_terminal_text(last_lines(text, max(scan_lines, MENU_CHOICE_SCAN_LINES)))
+            match = _find_yes_menu_choice(menu_searchable, answer=rule.answer)
             if match is not None:
                 return match
             continue
@@ -158,7 +181,9 @@ def latest_shell_command(text: str) -> str | None:
 
 def shell_commands(text: str) -> list[str]:
     searchable = _normalize_terminal_text(text)
-    return [match.group("command").strip() for match in SHELL_COMMAND_RE.finditer(searchable)]
+    commands = [match.group("command").strip() for match in SHELL_COMMAND_RE.finditer(searchable)]
+    commands.extend(match.group("command").strip() for match in DOLLAR_COMMAND_RE.finditer(searchable))
+    return commands
 
 
 def _excerpt(text: str, start: int, end: int, radius: int = 120) -> str:
@@ -169,8 +194,15 @@ def _excerpt(text: str, start: int, end: int, radius: int = 120) -> str:
 
 
 def _normalize_terminal_text(text: str) -> str:
-    without_escape_codes = ANSI_ESCAPE_RE.sub("", text)
+    with_layout_breaks = ANSI_LAYOUT_BREAK_RE.sub(_layout_break_to_newlines, text)
+    without_escape_codes = ANSI_ESCAPE_RE.sub("", with_layout_breaks)
     return without_escape_codes.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _layout_break_to_newlines(match: re.Match[str]) -> str:
+    count_text = match.group("count")
+    count = int(count_text) if count_text else 1
+    return "\n" * max(count, 1)
 
 
 def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
@@ -184,7 +216,7 @@ def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
         if no_index is None:
             continue
 
-        start = max(0, yes_index - 4)
+        start = max(0, yes_index - MENU_CONTEXT_LOOKBACK_LINES)
         end = min(len(lines), no_index + 6)
         excerpt_text = "\n".join(lines[start:end])
         if not MENU_CONTEXT_RE.search(excerpt_text):
@@ -192,14 +224,14 @@ def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
 
         return PromptMatch(
             rule_name="ai-cli-yes-choice",
-            answer=answer,
+            answer=_yes_choice_answer(line, excerpt_text=excerpt_text, default=answer),
             excerpt=_excerpt(excerpt_text, 0, len(excerpt_text)),
         )
     return None
 
 
 def _find_following_no_choice(lines: list[str], yes_index: int) -> int | None:
-    for index in range(yes_index + 1, min(len(lines), yes_index + 14)):
+    for index in range(yes_index + 1, min(len(lines), yes_index + MENU_NO_LOOKAHEAD_LINES)):
         choice = _parse_menu_choice(lines[index])
         if choice == "no":
             return index
@@ -211,8 +243,20 @@ def _parse_menu_choice(line: str) -> str | None:
     if match is None:
         return None
     label = match.group("label").strip().lower()
-    if label.startswith("yes"):
+    if label.startswith(("yes", "allow", "approve")):
         return "yes"
-    if label.startswith("no"):
+    if label.startswith(("no", "deny", "cancel")):
         return "no"
     return None
+
+
+def _yes_choice_answer(line: str, *, excerpt_text: str, default: str) -> str:
+    if MENU_ENTER_CONFIRM_RE.search(excerpt_text):
+        return default
+    match = MENU_CHOICE_RE.match(line)
+    if match is None:
+        return default
+    label = match.group("label").strip()
+    if MENU_HOTKEY_Y_RE.search(label):
+        return "y"
+    return default

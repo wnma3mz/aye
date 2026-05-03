@@ -35,6 +35,38 @@ class WrapperTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue(), b"")
 
+    def test_responder_blocks_codex_dollar_rm_command_before_menu(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+        prompt = (
+            "Would you like to run the following command?\n"
+            "$ rm -rf ./dist\n"
+            "› 1. Yes, proceed (y)\n"
+            "  2. No, and tell Codex what to do differently (esc)"
+        )
+
+        responder.maybe_confirm(output, prompt)
+
+        self.assertEqual(output.getvalue(), b"")
+        self.assertTrue(responder.blocked_until_manual_input)
+
+    def test_responder_blocks_long_codex_dollar_rm_command_before_menu(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+        body = "\n".join(f"line {index}" for index in range(90))
+        prompt = (
+            "Would you like to run the following command?\n"
+            "$ rm -rf ./dist\n"
+            f"{body}\n"
+            "› 1. Yes, proceed (y)\n"
+            "  2. No, and tell Codex what to do differently (esc)"
+        )
+
+        responder.maybe_confirm(output, prompt)
+
+        self.assertEqual(output.getvalue(), b"")
+        self.assertTrue(responder.blocked_until_manual_input)
+
     def test_responder_flags_blocked_rm_without_prompt(self) -> None:
         responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
 
@@ -80,6 +112,46 @@ class WrapperTests(unittest.TestCase):
         responder.maybe_confirm(output, "Do you want to proceed?\n1. Yes\n2. No")
 
         self.assertEqual(output.getvalue(), b"\r")
+
+    def test_responder_retries_enter_confirmation_when_no_output_follows(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+
+        responder.maybe_confirm(output, "Do you want to proceed?\n1. Yes\n2. No")
+        assert responder.pending_enter_retry is not None
+        responder.pending_enter_retry.next_retry_at = 0
+        responder.maybe_retry(output)
+
+        self.assertEqual(output.getvalue(), b"\r\r")
+
+    def test_responder_clears_enter_retry_when_output_follows(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+
+        responder.maybe_confirm(output, "Do you want to proceed?\n1. Yes\n2. No")
+        responder.note_output()
+        responder.maybe_retry(output)
+
+        self.assertEqual(output.getvalue(), b"\r")
+
+    def test_responder_does_not_retry_typed_yes_confirmation(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+
+        responder.maybe_confirm(output, "Claude Code asks: type yes to continue")
+        responder.maybe_retry(output)
+
+        self.assertEqual(output.getvalue(), b"yes\r")
+        self.assertIsNone(responder.pending_enter_retry)
+
+    def test_responder_answers_distinct_confirmation_without_cooldown(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+
+        responder.maybe_confirm(output, "Do you want to proceed?\n1. Yes\n2. No")
+        responder.maybe_confirm(output, "Allow this command to run? [y/N]")
+
+        self.assertEqual(output.getvalue(), b"\ry\r")
 
     def test_rolling_buffer_keeps_recent_lines(self) -> None:
         buffer = RollingTextBuffer(max_lines=2)

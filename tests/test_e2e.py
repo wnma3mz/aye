@@ -37,7 +37,34 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("received='\\r'", result.stdout)
         self.assertNotIn("Auto-confirming", result.stderr)
 
-    def test_cli_confirms_codex_file_edit_menu_with_enter(self) -> None:
+    def test_cli_confirms_claude_trust_folder_with_enter(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print(" > 1. Yes, I trust this folder", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                char = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={char!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
+    def test_cli_confirms_codex_enter_menu_with_enter(self) -> None:
         code = textwrap.dedent(
             r"""
             import sys
@@ -48,6 +75,35 @@ class EndToEndTests(unittest.TestCase):
             print("2. Yes, and don't ask again for these files (a)", flush=True)
             print("3. No, and tell Codex what to do differently (esc)", flush=True)
             print("Press enter to confirm or esc to cancel", flush=True)
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            try:
+                char = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            print()
+            print(f"received={char!r}", flush=True)
+            """
+        )
+
+        result = _run_aye_command(code)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("received='\\r'", result.stdout)
+        self.assertNotIn("Auto-confirming", result.stderr)
+
+    def test_cli_confirms_gemini_allow_once_menu_with_enter(self) -> None:
+        code = textwrap.dedent(
+            r"""
+            import sys
+            import termios
+            import tty
+
+            print("Confirm tool execution", flush=True)
+            print("│ ● 1. Allow once", flush=True)
+            print("│ ○ 2. Deny", flush=True)
 
             fd = sys.stdin.fileno()
             old = termios.tcgetattr(fd)
