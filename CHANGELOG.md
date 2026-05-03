@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.11 - 2026-05-03
+
+- Replace a flaky cross-platform PTY e2e with a deterministic responder test for clearing old dangerous-command blocks.
+
 ## 0.0.10 - 2026-05-03
 
 - Let a newly observed safe shell command clear an older dangerous-command block during prompt confirmation.

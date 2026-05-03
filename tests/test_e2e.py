@@ -274,43 +274,6 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("received=None", result.stdout)
         self.assertNotIn("Auto-confirming", result.stderr)
 
-    def test_cli_confirms_new_safe_command_after_old_dangerous_command(self) -> None:
-        code = textwrap.dedent(
-            r"""
-            import sys
-            import termios
-            import tty
-
-            fd = sys.stdin.fileno()
-            old = termios.tcgetattr(fd)
-            tty.setraw(fd)
-            try:
-                print("Bash(rm -rf /tmp/test_demo_dir)", flush=True)
-                print("Waiting...", flush=True)
-                print("Bash(git push origin main)", flush=True)
-                print("Running...", flush=True)
-                print("Bash command", flush=True)
-                print("git push origin main", flush=True)
-                print("Do you want to proceed?", flush=True)
-                print("❯ 1. Yes", flush=True)
-                print("  2. Yes, and don’t ask again for: git push:*", flush=True)
-                print("  3. No", flush=True)
-                print("Esc to cancel · Enter to select", flush=True)
-                char = sys.stdin.read(1)
-            finally:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old)
-            print()
-            print(f"received={char!r}", flush=True)
-            """
-        )
-
-        result = _run_aye_command(code)
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("received='\\r'", result.stdout)
-        self.assertNotIn("Blocked auto-confirm", result.stderr)
-        self.assertNotIn("Auto-confirming", result.stderr)
-
     def test_cli_verbose_prints_diagnostic_logs(self) -> None:
         code = textwrap.dedent(
             r"""

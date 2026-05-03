@@ -98,6 +98,26 @@ class WrapperTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue(), b"\r")
 
+    def test_responder_confirms_safe_prompt_after_old_dangerous_command_in_same_buffer(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+        responder.maybe_blocked("Bash(rm -rf /tmp/test_claude_confirm_dir)\nRunning...")
+        prompt = (
+            "Bash(rm -rf /tmp/test_claude_confirm_dir)\n"
+            "Running...\n"
+            "Bash(git push origin main)\n"
+            "Running...\n"
+            "Do you want to proceed?\n"
+            "❯ 1. Yes\n"
+            "  2. No\n"
+            "Enter to select"
+        )
+
+        responder.maybe_confirm(output, prompt)
+
+        self.assertEqual(output.getvalue(), b"\r")
+        self.assertFalse(responder.blocked_until_manual_input)
+
     def test_responder_clears_block_when_repeated_safe_command_reappears(self) -> None:
         output = io.BytesIO()
         responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
