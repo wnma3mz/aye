@@ -183,11 +183,20 @@ class ConfirmationResponder:
         if match is None:
             return
 
-        if self.blocked_until_manual_input:
-            return
-
         command = latest_shell_command(text)
-        blocked = find_blocked_command(command, scan_lines=0) if command is not None else find_blocked_command(text, scan_lines=0)
+        if command is not None:
+            blocked = find_blocked_command(command, scan_lines=0)
+            if blocked is None:
+                self.blocked_until_manual_input = False
+            else:
+                self._report_blocked(blocked)
+                self.blocked_until_manual_input = True
+                return
+        elif self.blocked_until_manual_input:
+            return
+        else:
+            blocked = find_blocked_command(text, scan_lines=0)
+
         if blocked is not None:
             self._report_blocked(blocked)
             self.blocked_until_manual_input = True

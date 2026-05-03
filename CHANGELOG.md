@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10 - 2026-05-03
+
+- Let a newly observed safe shell command clear an older dangerous-command block during prompt confirmation.
+
 ## 0.0.9 - 2026-05-03
 
 - Make prompt end-to-end tests enter raw input mode before printing menus to avoid architecture-specific PTY flush races.
