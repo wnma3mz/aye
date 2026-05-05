@@ -35,6 +35,24 @@ class DetectorTests(unittest.TestCase):
         self.assertEqual(match.rule_name, "ai-cli-yes-choice")
         self.assertEqual(match.answer, "")
 
+    def test_detects_latest_yes_menu_choice(self) -> None:
+        text = (
+            "Do you want to proceed?\n"
+            "1. Yes\n"
+            "2. No\n"
+            "First command finished\n"
+            "Allow the next command?\n"
+            "1. Yes\n"
+            "2. No"
+        )
+
+        match = find_confirmation(text)
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.rule_name, "ai-cli-yes-choice")
+        self.assertIn("Allow the next command?", match.excerpt)
+
     def test_detects_claude_three_choice_permission_menu(self) -> None:
         text = "\x1b[36mDo you want to proceed?\x1b[0m\n❯ 1. Yes\n  2. Yes, allow reading from tmp/ from this project\n  3. No"
 

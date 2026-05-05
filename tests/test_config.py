@@ -15,6 +15,7 @@ class ConfigTests(unittest.TestCase):
                     {
                         "scan_lines": 3,
                         "cooldown_seconds": 2,
+                        "dedupe_repeated_prompts": True,
                         "rules": [
                             {
                                 "name": "custom",
@@ -31,6 +32,7 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(config.scan_lines, 3)
         self.assertEqual(config.cooldown_seconds, 2)
+        self.assertTrue(config.dedupe_repeated_prompts)
         self.assertEqual(config.rules[0].name, "custom")
 
 

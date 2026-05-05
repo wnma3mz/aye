@@ -18,7 +18,9 @@ aye --config aye.json claude
 
 `scan_lines`：只检查终端最近多少行输出。默认是 `20`。数值越小越保守，越不容易误匹配旧内容。
 
-`cooldown_seconds`：两次自动确认之间的最短间隔。默认是 `8.0` 秒，用来避免同一个提示被重复确认。
+`cooldown_seconds`：保留的兼容配置项。当前默认会尽量确认每一个命中的提示，不再用全局冷却时间跳过连续确认。
+
+`dedupe_repeated_prompts`：是否跳过重复确认提示。默认是 `false`，也就是同一个提示重复出现时仍会继续自动确认。设为 `true` 后，Aye 会跳过单纯 TUI 重绘造成的重复提示；如果上次回答后又出现新的确认提示，则仍会再次确认。
 
 `rules`：确认提示匹配规则。每条规则包含：
 
@@ -32,6 +34,7 @@ aye --config aye.json claude
 {
   "scan_lines": 20,
   "cooldown_seconds": 8.0,
+  "dedupe_repeated_prompts": false,
   "rules": [
     {
       "name": "explicit-type-yes",

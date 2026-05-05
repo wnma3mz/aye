@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12 - 2026-05-05
+
+- Default to confirming repeated prompts instead of deduplicating them.
+- Add `dedupe_repeated_prompts` config for users who want to skip repeated TUI redraw prompts.
+- Prefer the latest matching prompt in the rolling output buffer.
+- Ignore closed PTY write races when a child process exits after a prompt was already detected.
+
 ## 0.0.11 - 2026-05-03
 
 - Replace a flaky cross-platform PTY e2e with a deterministic responder test for clearing old dangerous-command blocks.

@@ -16,9 +16,19 @@ class WrapperTests(unittest.TestCase):
     def test_wrapped_command_defaults_to_claude(self) -> None:
         self.assertEqual(_wrapped_command([]), ["claude"])
 
-    def test_responder_writes_yes_once_for_same_prompt(self) -> None:
+    def test_responder_writes_yes_for_same_prompt_by_default(self) -> None:
         output = io.BytesIO()
         responder = ConfirmationResponder(config=AyeConfig(), dry_run=False)
+        prompt = "Claude Code asks: type yes to continue"
+
+        responder.maybe_confirm(output, prompt)
+        responder.maybe_confirm(output, prompt)
+
+        self.assertEqual(output.getvalue(), b"yes\ryes\r")
+
+    def test_responder_dedupes_same_prompt_when_configured(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(dedupe_repeated_prompts=True), dry_run=False)
         prompt = "Claude Code asks: type yes to continue"
 
         responder.maybe_confirm(output, prompt)
@@ -172,6 +182,26 @@ class WrapperTests(unittest.TestCase):
         responder.maybe_confirm(output, "Allow this command to run? [y/N]")
 
         self.assertEqual(output.getvalue(), b"\ry\r")
+
+    def test_responder_skips_same_prompt_redraw(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(dedupe_repeated_prompts=True), dry_run=False)
+        prompt = "Do you want to proceed?\n1. Yes\n2. No"
+
+        responder.maybe_confirm(output, prompt)
+        responder.maybe_confirm(output, f"{prompt}\n{prompt}")
+
+        self.assertEqual(output.getvalue(), b"\r")
+
+    def test_responder_answers_same_prompt_after_intervening_output(self) -> None:
+        output = io.BytesIO()
+        responder = ConfirmationResponder(config=AyeConfig(dedupe_repeated_prompts=True), dry_run=False)
+        prompt = "Do you want to proceed?\n1. Yes\n2. No"
+
+        responder.maybe_confirm(output, prompt)
+        responder.maybe_confirm(output, f"{prompt}\nFirst command finished\n{prompt}")
+
+        self.assertEqual(output.getvalue(), b"\r\r")
 
     def test_rolling_buffer_keeps_recent_lines(self) -> None:
         buffer = RollingTextBuffer(max_lines=2)

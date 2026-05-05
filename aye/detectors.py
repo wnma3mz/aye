@@ -149,8 +149,9 @@ def find_confirmation(
             if match is not None:
                 return match
             continue
-        match = rule.compile().search(searchable)
-        if match:
+        matches = list(rule.compile().finditer(searchable))
+        if matches:
+            match = matches[-1]
             return PromptMatch(
                 rule_name=rule.name,
                 answer=rule.answer,
@@ -211,7 +212,8 @@ def _layout_break_to_newlines(match: re.Match[str]) -> str:
 
 def _find_yes_menu_choice(text: str, *, answer: str) -> PromptMatch | None:
     lines = text.splitlines()
-    for yes_index, line in enumerate(lines):
+    for yes_index in range(len(lines) - 1, -1, -1):
+        line = lines[yes_index]
         yes_choice = _parse_menu_choice(line)
         if yes_choice != "yes":
             continue

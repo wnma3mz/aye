@@ -9,7 +9,15 @@ import sys
 import time
 
 from .config import AyeConfig
-from .detectors import BlockedCommandMatch, PromptMatch, find_blocked_command, find_confirmation, latest_shell_command, shell_commands
+from .detectors import (
+    BlockedCommandMatch,
+    PromptMatch,
+    _normalize_terminal_text,
+    find_blocked_command,
+    find_confirmation,
+    latest_shell_command,
+    shell_commands,
+)
 
 ENTER_CONFIRM_DELAY_SECONDS = 0.8
 ENTER_RETRY_DELAYS_SECONDS = (1.0, 3.0)
@@ -174,6 +182,7 @@ class ConfirmationResponder:
         self.last_action_at = 0.0
         self.last_signature: tuple[str, str] | None = None
         self.last_blocked_signature: tuple[str, str] | None = None
+        self.last_answered_text_length = 0
         self.blocked_until_manual_input = False
         self.last_shell_command: str | None = None
         self.pending_enter_retry: PendingEnterRetry | None = None
@@ -202,7 +211,7 @@ class ConfirmationResponder:
             self.blocked_until_manual_input = True
             return
 
-        if not self._should_answer(match):
+        if self.config.dedupe_repeated_prompts and not self._should_answer(match, text):
             return
 
         if self.verbose:
@@ -213,6 +222,7 @@ class ConfirmationResponder:
             _write_answer(target, match.answer)
         self.last_action_at = time.monotonic()
         self.last_signature = (match.rule_name, match.excerpt)
+        self.last_answered_text_length = len(text)
         self._schedule_enter_retry(match)
 
     def note_output(self) -> None:
@@ -282,15 +292,28 @@ class ConfirmationResponder:
             print(_describe_blocked(match), file=sys.stderr, flush=True)
         self.last_blocked_signature = signature
 
-    def _should_answer(self, match: PromptMatch) -> bool:
+    def _should_answer(self, match: PromptMatch, text: str) -> bool:
         signature = (match.rule_name, match.excerpt)
         if signature == self.last_signature:
-            return False
+            return self._has_intervening_output_since_last_answer(text, self.last_signature[1])
         if self.last_signature is not None and match.rule_name == self.last_signature[0]:
             previous_excerpt = self.last_signature[1]
             if previous_excerpt in match.excerpt or match.excerpt in previous_excerpt:
-                return False
+                return self._has_intervening_output_since_last_answer(text, previous_excerpt)
         return True
+
+    def _has_intervening_output_since_last_answer(self, text: str, previous_excerpt: str) -> bool:
+        if len(text) < self.last_answered_text_length:
+            return True
+        suffix = _normalize_terminal_text(text[self.last_answered_text_length :])
+        suffix_match = find_confirmation(suffix, self.config.rules, scan_lines=self.config.scan_lines)
+        if suffix_match is None:
+            return False
+        for line in suffix.splitlines():
+            stripped = line.strip()
+            if stripped and stripped not in previous_excerpt:
+                return True
+        return False
 
     def _schedule_enter_retry(self, match: PromptMatch) -> None:
         if self.dry_run or match.answer != "":
@@ -354,11 +377,16 @@ def _terminate_process(process: subprocess.Popen) -> None:
 
 def _write_answer(target, answer: str) -> None:
     payload = f"{answer}\r".encode()
-    if isinstance(target, int):
-        os.write(target, payload)
+    try:
+        if isinstance(target, int):
+            os.write(target, payload)
+            return
+        target.write(payload)
+        target.flush()
+    except OSError:
+        # The child may exit between prompt detection and our response,
+        # especially when repeated confirmations are allowed by default.
         return
-    target.write(payload)
-    target.flush()
 
 
 def _describe_match(match: PromptMatch, *, dry_run: bool) -> str:
